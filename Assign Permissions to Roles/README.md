@@ -21,7 +21,14 @@ public function showPermissions(Role $role)
 
 public function updatePermissions(Request $request, Role $role)
 {
-    $role->syncPermissions($request->permissions ?? []);
+    $permissionIds = $request->permissions ?? [];
+
+    // Fetch the permission models by ID
+    $permissions = Permission::whereIn('id', $permissionIds)->get();
+
+    // Assign permissions correctly
+    $role->syncPermissions($permissions);
+
     return redirect()->route('roles.index')->with('success', 'Permissions updated for role.');
 }
 ```
