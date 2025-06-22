@@ -1,187 +1,120 @@
-To implement dynamic menu logic using Laravel AdminLTE’s `BuildingMenu` event, you need to properly set up an `EventServiceProvider` and register it. Here's how to **create and implement `EventServiceProvider` for AdminLTE dynamic menu configuration**:
+To apply **badge counts to all items in the `config/adminlte.php` menu config**, you need to **dynamically generate the menu** in a service provider **at runtime**, instead of defining a static menu in the config file.
+
+### ✅ Why?
+
+The `config/adminlte.php` is loaded **before** Laravel's request lifecycle (i.e. no `auth()`, `session()`, `DB` access). So we can't directly call `Model::count()` or similar functions in it.
 
 ---
 
-### ✅ 1. **Create the EventServiceProvider (if not present)**
+### ✅ Solution: Dynamically build the menu in a Service Provider
 
-If not already present, generate one with:
+---
+
+### 🛠 Step 1: Remove `menu` from `config/adminlte.php`
+
+In `config/adminlte.php`, **remove** the static `menu` definition or replace it with an empty array:
+
+```php
+'menu' => [],
+```
+
+---
+
+### 🛠 Step 2: Create `AppServiceProvider` or use a new one like `AdminMenuServiceProvider`
 
 ```bash
-php artisan make:provider EventServiceProvider
+php artisan make:provider AdminMenuServiceProvider
 ```
 
----
-
-### ✅ 2. **Update the `EventServiceProvider`**
-
-Edit `app/Providers/EventServiceProvider.php` like this:
+Then in `boot()`:
 
 ```php
-<?php
-
-namespace App\Providers;
-
-use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\View;
 use JeroenNoten\LaravelAdminLte\Events\BuildingMenu;
+use Spatie\Permission\Models\Role;
+use App\Models\School;
+use App\Models\Student;
 
-class EventServiceProvider extends ServiceProvider
-{
-    public function boot()
-    {
-        Event::listen(BuildingMenu::class, function (BuildingMenu $event) {
-            // Example: Static menu items
-            $event->menu->add('MAIN NAVIGATION');
-
-            $event->menu->add([
-                'text' => 'Dashboard',
-                'url'  => 'admin/dashboard',
-                'icon' => 'fas fa-tachometer-alt',
-            ]);
-
-            // Example: Role-based logic
-            if (auth()->check() && auth()->user()->hasRole('admin')) {
-                $event->menu->add([
-                    'text' => 'User Management',
-                    'url'  => 'admin/users',
-                    'icon' => 'fas fa-users',
-                ]);
-            }
-        });
-    }
-}
-```
-
----
-
-### ✅ 3. **Register the Provider (if not auto-registered)**
-
-In `config/app.php`, under `providers`, ensure it's registered:
-
-```php
-'providers' => [
-    // ...
-    App\Providers\EventServiceProvider::class,
-],
-```
-
----
-
-### ✅ 4. **Enable Menu Filters in `config/adminlte.php`**
-
-Ensure filters are present in `config/adminlte.php`:
-
-```php
-'menu_filters' => [
-    JeroenNoten\LaravelAdminLte\Menu\Filters\GateFilter::class,
-    JeroenNoten\LaravelAdminLte\Menu\Filters\HrefFilter::class,
-    JeroenNoten\LaravelAdminLte\Menu\Filters\SearchFilter::class,
-    JeroenNoten\LaravelAdminLte\Menu\Filters\ActiveFilter::class,
-    JeroenNoten\LaravelAdminLte\Menu\Filters\ClassesFilter::class,
-    JeroenNoten\LaravelAdminLte\Menu\Filters\LangFilter::class,
-    JeroenNoten\LaravelAdminLte\Menu\Filters\DataFilter::class,
-],
-```
-
----
-
-### ✅ 5. **Optional: Use Permissions**
-
-If you're using **spatie/laravel-permission**, add this to the menu item:
-
-```php
-[
-    'text' => 'Roles',
-    'url' => 'admin/roles',
-    'can' => 'manage roles',
-],
-```
-
-And make sure you’ve set up the `GateFilter` and policies correctly.
-
----
-
-### ✅ Final Output Menu Example
-
-This is how the full `boot()` might look:
-
-```php
 public function boot()
 {
-    Event::listen(BuildingMenu::class, function (BuildingMenu $event) {
-        $event->menu->add('MAIN NAVIGATION');
-
-        $event->menu->add([
-            'text' => 'Dashboard',
-            'url'  => 'admin/dashboard',
-            'icon' => 'fas fa-home',
-        ]);
-
-        if (auth()->check() && auth()->user()->hasRole('admin')) {
-            $event->menu->add([
-                'text' => 'Users',
-                'url'  => 'admin/users',
+    \Event::listen(BuildingMenu::class, function (BuildingMenu $event) {
+        $event->menu->add(
+            [
+                'text' => 'Roles',
+                'url' => 'admin/roles',
+                'icon' => 'fas fa-user-shield',
+                'label' => Role::count(),
+                'label_color' => 'primary',
+            ],
+            [
+                'text' => 'Schools',
+                'url' => 'admin/schools',
+                'icon' => 'fas fa-school',
+                'label' => School::count(),
+                'label_color' => 'info',
+            ],
+            [
+                'text' => 'Students',
+                'url' => 'admin/students',
                 'icon' => 'fas fa-users',
-            ]);
-        }
+                'label' => Student::count(),
+                'label_color' => 'success',
+            ],
+            // add more items here
+        );
     });
 }
 ```
 
----
-
-Would you like a complete working example with roles, permissions, and logout profile dropdown too?
-
-Yes — if you are using the `BuildingMenu` event in your `EventServiceProvider` to **dynamically build the sidebar menu**, then you **should comment out or remove** the static `'menu' => [...]` array in `config/adminlte.php`.
-
----
-
-### ✅ Why?
-
-The `BuildingMenu` event **overrides** the static menu defined in `config/adminlte.php`. Keeping both can cause **conflicts or duplicate items** if not managed carefully.
-
----
-
-### ✅ What to Keep
-
-You can **keep** the `navbar-search`, `fullscreen-widget`, and `sidebar-menu-search` items **if you still want those UI widgets**, since they're independent of the sidebar links.
-
-So, your `adminlte.php` `menu` section can be trimmed to something like:
+You can also create arrays like:
 
 ```php
-'menu' => [
-    // Navbar search
-    [
-        'type' => 'navbar-search',
-        'text' => 'search',
-        'topnav_right' => true,
+$event->menu->add([
+    'text' => 'Student Management',
+    'icon' => 'fas fa-user-graduate',
+    'submenu' => [
+        [
+            'text' => 'Enquiries',
+            'url'  => 'admin/enquiries',
+            'label' => \App\Models\Enquiry::count(),
+            'label_color' => 'warning',
+        ],
+        [
+            'text' => 'Admission Forms',
+            'url'  => 'admin/admissions',
+            'label' => \App\Models\Admission::count(),
+            'label_color' => 'info',
+        ],
     ],
-
-    // Fullscreen widget
-    [
-        'type' => 'fullscreen-widget',
-        'topnav_right' => true,
-    ],
-
-    // Sidebar search
-    [
-        'type' => 'sidebar-menu-search',
-        'text' => 'search',
-    ],
-],
+]);
 ```
 
-Then move all sidebar links (Dashboard, Shops, Orders, etc.) to the `EventServiceProvider` via `BuildingMenu`.
+---
+
+### 🛠 Step 3: Register the Provider in `config/app.php`
+
+Add it to the `providers` array:
+
+```php
+App\Providers\AdminMenuServiceProvider::class,
+```
 
 ---
 
-### ✅ Summary
+### ✅ Final Output
 
-| Section             | Keep in `adminlte.php` | Move to `EventServiceProvider` |
-| ------------------- | ---------------------- | ------------------------------ |
-| Navbar/Topnav items | ✅ Yes                  | ❌ No                           |
-| Sidebar menu items  | ❌ No (comment/remove)  | ✅ Yes                          |
+Now your menu badges are **live counts**, dynamically generated on **every sidebar render**. 🎯
 
 ---
 
-Would you like me to generate the complete `EventServiceProvider` code with all those sidebar items you listed (`Dashboard`, `Shops`, `Users`, etc.) moved into it?
+### 💡 Bonus: Cache counts for performance
+
+If performance is a concern, cache the counts:
+
+```php
+'label' => cache()->remember('roles_count', now()->addMinutes(10), fn() => Role::count()),
+```
+
+---
+
+Would you like a full working example with all sections like “Asset Management”, “Transport Management”, etc.?
