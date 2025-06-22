@@ -29,40 +29,62 @@ php artisan make:provider AdminMenuServiceProvider
 Then in `boot()`:
 
 ```php
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
 use JeroenNoten\LaravelAdminLte\Events\BuildingMenu;
+
 use Spatie\Permission\Models\Role;
 use App\Models\School;
 use App\Models\Student;
 
-public function boot()
+class AdminMenuServiceProvider extends ServiceProvider
 {
-    \Event::listen(BuildingMenu::class, function (BuildingMenu $event) {
-        $event->menu->add(
-            [
-                'text' => 'Roles',
-                'url' => 'admin/roles',
-                'icon' => 'fas fa-user-shield',
-                'label' => Role::count(),
-                'label_color' => 'primary',
-            ],
-            [
-                'text' => 'Schools',
-                'url' => 'admin/schools',
-                'icon' => 'fas fa-school',
-                'label' => School::count(),
-                'label_color' => 'info',
-            ],
-            [
-                'text' => 'Students',
-                'url' => 'admin/students',
-                'icon' => 'fas fa-users',
-                'label' => Student::count(),
-                'label_color' => 'success',
-            ],
-            // add more items here
-        );
-    });
+    /**
+     * Register services.
+     */
+    public function register(): void
+    {
+        //
+    }
+
+    /**
+     * Bootstrap services.
+     */
+    public function boot(): void
+    {
+        Event::listen(BuildingMenu::class, function (BuildingMenu $event) {
+            $event->menu->add(
+                [
+                    'text' => 'Roles',
+                    'url' => 'admin/roles',
+                    'icon' => 'fas fa-user-shield',
+                    'label' => Role::count(),
+                    'label_color' => 'primary',
+                ],
+                [
+                    'text' => 'Schools',
+                    'url' => 'admin/schools',
+                    'icon' => 'fas fa-school',
+                    'label' => School::count(),
+                    'label_color' => 'info',
+                ],
+                [
+                    'text' => 'Students',
+                    'url' => 'admin/students',
+                    'icon' => 'fas fa-users',
+                    'label' => Student::count(),
+                    'label_color' => 'success',
+                ],
+                // add more items here
+            );
+        });
+    }
 }
 ```
 
