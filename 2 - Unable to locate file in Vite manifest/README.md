@@ -51,6 +51,7 @@ After fixing the file or config, run:
 
 ```bash
 npm install
+npm run build
 npm run dev
 ```
 
